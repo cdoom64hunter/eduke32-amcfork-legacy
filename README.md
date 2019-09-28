@@ -1,19 +1,17 @@
 # EDuke32 Fork for the AMC TC
-This is a fork of the EDuke32 engine that makes a number of changes specifically for the AMC TC.
+This is a fork of the *EDuke32* engine that makes a number of changes specifically for the AMC TC.
 
-Link to the game: https://www.moddb.com/games/the-amc-tc
+**Link to the game: https://www.moddb.com/games/the-amc-tc**
 
-It alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. 
+It alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. These changes are most likely not suitable for a merge with the main eduke32 branch which is why we offer them here.
 
-The changes that have been made to the engine are listed at the bottom of this document, and the specifics can be viewed in the corresponding SVN diff file. We stress that this build is NOT INTENDED to be used with Duke Nukem 3D or ANY of its expansions.  Do not make attempts to do so, or else things will inevitably break.
+The changes that have been made to the engine are listed at the bottom of this document, and the specifics can be viewed in the corresponding SVN diff file. **We stress that this build is NOT INTENDED to be used with Duke Nukem 3D or ANY of its expansions.  Do not make attempts to do so, or else things will inevitably break.**
 
-Instead, to play Duke Nukem 3D, please download an official eduke32 release from here: https://www.eduke32.com/ 
+Instead, to play Duke Nukem 3D, please download an official *EDuke32* release from here: https://www.eduke32.com/ 
 
-In this repo, we provide the source code for our fork of eduke32, a patch file listing the changes that have been made to the respective revision this fork was based on,
-as well as the png images used for the startup banner as well as the game icons, which have been created by AliCatGamer and Sebabdukeboss20.
+In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**.
 
-EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, which have been included in the base directory of this repo as well. 
-We hereby release our changes to the engine under the same licenses.
+*EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, which have been included in the base directory of this repository as well. We hereby release our changes to the engine under the same licenses.*
 
 ### This fork has been created by:
 * Sangluss
@@ -26,7 +24,7 @@ We hereby release our changes to the engine under the same licenses.
 * AliCatGamer
 * Sebabdukeboss20 
 
-Huge thanks go out to the EDuke32 team for assisting with feature requests and bugfixes over the many years of the AMC TC's existence:
+**Huge thanks go out to the EDuke32 team for assisting us with feature requests, performance improvements and bugfixes over the many years of the game's development (and hopefully many more):**
 
 ### EDuke32 Credits:
 * Developers:
@@ -41,7 +39,6 @@ Huge thanks go out to the EDuke32 team for assisting with feature requests and b
    * Ken "Awesoken" Silverman
 
 # Build Instructions:
-----------------------------------
 64-bit Windows binaries of this fork are included directly with the download for the AMC TC 3.6.
  
 If you are running on a different architecture/OS, or need to build the binaries yourself for other reasons, install the required dependencies on your system, and then run the makefile in the ./eduke32-amcfork directory.
