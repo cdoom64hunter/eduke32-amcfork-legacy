@@ -11,11 +11,13 @@ Instead, to play Duke Nukem 3D, please download an official *EDuke32* release fr
 
 In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**.
 
-*EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, which have been included in the base directory of this repository as well. We hereby release our changes to the engine under the same licenses.*
+*EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, 
+which have been included in the base directory of this repository as well, under gpl-2.0.txt and buildlic.txt.
+We hereby release our changes to the engine under the same licenses.*
 
 ### This fork has been created by:
-* Sangluss
-* Doom64hunter
+* Cedric "Sangluss" Haegeman
+* Dino "Doom64hunter" Bollinger
 
 ### AMC TC Lead: 
 * James Stanfield
@@ -37,6 +39,37 @@ In this repository, we provide the source code for our fork of EDuke32, a patch 
    * Jonathon "Jonof" Fowler
 * Uses Build Engine Technology by:
    * Ken "Awesoken" Silverman
+* Additional Contributors:
+   * Alexey Skrybykin
+   * Bioman
+   * Brandon Bergren
+   * Charlie Honig
+   * Dan Gaskill
+   * David Koenig
+   * Ed Coolidge
+   * Emile Belanger
+   * Fox
+   * Hunter_Rus
+   * James Bentler
+   * Jasper Foreman
+   * Javie Martinez
+   * Jeff Hart
+   * Jonathan Strander
+   * Jordon Moss
+   * Jose Del Castillo
+   * Lachlan Mcdonald
+   * LSDNinja
+   * Marcus Herbert
+   * Matthew Palmer
+   * Matt Saettler
+   * Nyoo123
+   * Ozkan Sezer
+   * Peter Green
+   * Peter Veenstra
+   * Robin Green
+   * Ryan Gordon
+   * Stephen Anthony
+   * Tueidj
 
 # Build Instructions:
 64-bit Windows binaries of this fork are included directly with the download for the AMC TC 3.6.
@@ -54,6 +87,8 @@ For further information, see the instructions on the eduke32 wiki for the respec
 
 This fork is currently based on eduke32 r8133. If you want to try a different version, 
 you can use the diff file as a patch to a local copy of the official eduke32 SVN.
+However, we do not recommend doing this, as changes between revisions can make the
+game quite unstable.
 
 ### Mandatory Packages
 * Basic dev environment (GCC >= 4.8, GNU make, etc)
