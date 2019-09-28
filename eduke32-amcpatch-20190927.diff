@@ -1,0 +1,816 @@
+Index: Common.mak
+===================================================================
+--- Common.mak	(revision 8133)
++++ Common.mak	(working copy)
+@@ -858,6 +858,9 @@
+ ifneq (0,$(POLYMER))
+     COMPILERFLAGS += -DPOLYMER
+ endif
++ifneq (0,$(AMC_BUILD))
++    COMPILERFLAGS += -DAMC_BUILD
++endif
+ 
+ 
+ ##### External library paths
+Index: GNUmakefile
+===================================================================
+--- GNUmakefile	(revision 8133)
++++ GNUmakefile	(working copy)
+@@ -13,6 +13,14 @@
+     SIMPLE_MENU := 1
+ endif
+ 
++ifeq ($(AMCTC),1)
++    APPNAME := EDuke32 (AMC Custom)
++    APPBASENAME := amctc
++    POLYMER := 0
++    NETCODE := 0
++    AMC_BUILD := 1
++endif
++
+ ### Platform and Toolchain Configuration
+ include Common.mak
+ 
+Index: source/build/include/build.h
+===================================================================
+--- source/build/include/build.h	(revision 8133)
++++ source/build/include/build.h	(working copy)
+@@ -101,7 +101,9 @@
+ 
+ #define MAXWALLSB ((MAXWALLS>>2)+(MAXWALLS>>3))
+ 
+-#define MAXTILES 30720
++// Increased from 30720 for AMC
++#define MAXTILES 32512
++
+ #define MAXUSERTILES (MAXTILES-16)  // reserve 16 tiles at the end
+ 
+ #define MAXVOXELS 1024
+Index: source/build/src/2d.cpp
+===================================================================
+--- source/build/src/2d.cpp	(revision 8133)
++++ source/build/src/2d.cpp	(working copy)
+@@ -891,8 +891,9 @@
+     {
+         if ((unsigned) wal->nextwall < MAXWALLS && ((wal->cstat^wall[j].cstat)&1))
+             col = editorcolors[2];
+-        else if ((wal->cstat&1) != 0)
+-            col = editorcolors[5];
++        else if ((wal->cstat&1) != 0) {
++            col = editorcolors[9]; // blue
++	}
+         else col = editorcolors[4];
+ 
+         if (i == linehighlight || (linehighlight >= 0 && i == wall[linehighlight].nextwall))
+Index: source/build/src/build.cpp
+===================================================================
+--- source/build/src/build.cpp	(revision 8133)
++++ source/build/src/build.cpp	(working copy)
+@@ -102,7 +102,7 @@
+ int32_t forcesetup = 1;
+ 
+ #ifndef GEKKO
+-int32_t g_maxCacheSize = 24<<20;
++int32_t g_maxCacheSize = 512<<20; // Increased from 24
+ #else
+ int32_t g_maxCacheSize = 8<<20;
+ #endif
+Index: source/build/src/cache1d.cpp
+===================================================================
+--- source/build/src/cache1d.cpp	(revision 8133)
++++ source/build/src/cache1d.cpp	(working copy)
+@@ -100,8 +100,10 @@
+ //           After calling uninitcache, it is still ok to call allocache
+ //           without first calling initcache.
+ 
+-#define MAXCACHEOBJECTS 16384
+-
++#define CACHEINCREMENT 8192
++#define MEANCACHEBLOCKSIZE (128*128)
++int32_t maxcacheobjects = -1;
++ 
+ #if !defined DEBUG_ALLOCACHE_AS_MALLOC
+ static int32_t cachesize = 0;
+ static char zerochar = 0;
+@@ -109,7 +111,7 @@
+ static int32_t lockrecip[200];
+ 
+ int32_t cacnum = 0;
+-cactype cac[MAXCACHEOBJECTS];
++cactype * cac = NULL;
+ #endif
+ 
+ char toupperlookup[256] =
+@@ -149,10 +151,16 @@
+     cachestart = ((uintptr_t)dacachestart+15)&~(uintptr_t)0xf;
+     cachesize = (dacachesize-(((uintptr_t)(dacachestart))&0xf))&~(uintptr_t)0xf;
+ 
++    maxcacheobjects = max<int>(cachesize / MEANCACHEBLOCKSIZE, 8192); 
++    cac = (cactype *) xmalloc(maxcacheobjects *sizeof(cactype));
++
+     cac[0].leng = cachesize;
+     cac[0].lock = &zerochar;
+     cacnum = 1;
+ 
++    #ifdef DEBUGGINGAIDS
++    initprintf("Cache object array initialized with \"%d\" entries. \n", maxcacheobjects);
++    #endif
+     initprintf("Initialized %.1fM cache\n", (float)(dacachesize/1024.f/1024.f));
+ #else
+     UNREFERENCED_PARAMETER(dacachestart);
+@@ -168,10 +176,22 @@
+     *newhandle = (intptr_t)Xmalloc(newbytes);
+ }
+ #else
++// Dynamic cache resizing -- increase cache array size when full
+ static inline void inc_and_check_cacnum(void)
+ {
+-    if (EDUKE32_PREDICT_FALSE(++cacnum > MAXCACHEOBJECTS))
+-        reportandexit("Too many objects in cache! (cacnum > MAXCACHEOBJECTS)");
++    if (EDUKE32_PREDICT_FALSE(++cacnum > maxcacheobjects)){
++        cactype* new_cac = (cactype *) xmalloc((maxcacheobjects + CACHEINCREMENT) * sizeof(cactype));
++        Bmemcpy( new_cac, cac, maxcacheobjects * sizeof(cactype) );
++
++        xfree(cac);
++        cac = new_cac;
++
++        #ifdef DEBUGGINGAIDS
++        initprintf("Cache increased from \'%d\' to \'%d\' entries. \n", maxcacheobjects, maxcacheobjects + CACHEINCREMENT);
++        #endif
++
++        maxcacheobjects += CACHEINCREMENT;
++    }
+ }
+ 
+ int32_t cacheFindBlock(int32_t newbytes, int32_t *besto, int32_t *bestz)
+@@ -309,7 +329,7 @@
+     if (agecount >= cacnum)
+         agecount = cacnum-1;
+ 
+-    int cnt = min(MAXCACHEOBJECTS >> 5, cacnum-1);
++    int cnt = min(maxcacheobjects >> 5, cacnum-1);
+ 
+     while(cnt--)
+     {
+Index: source/duke3d/rsrc/buildres.rc
+===================================================================
+--- source/duke3d/rsrc/buildres.rc	(revision 8133)
++++ source/duke3d/rsrc/buildres.rc	(working copy)
+@@ -10,7 +10,7 @@
+ CAPTION "Startup"
+ FONT 8, "MS Shell Dlg"
+ BEGIN
+-	CONTROL "", WIN_STARTWIN_BITMAP, "STATIC", SS_BITMAP | SS_CENTERIMAGE | WS_CHILD | WS_VISIBLE, 0, 0, 66, 172
++	CONTROL "", WIN_STARTWIN_BITMAP, "STATIC", SS_BITMAP | SS_CENTERIMAGE | WS_CHILD | WS_VISIBLE, 0, 0, 140, 400 // increased to fit AMC banner
+ 	CONTROL "", WIN_STARTWIN_TABCTL, WC_TABCONTROL, WS_CLIPSIBLINGS | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 5, 5, 250, 170
+ 	CONTROL "&Start", WIN_STARTWIN_START, "BUTTON", BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 154, 180, 48, 14
+ 	CONTROL "&Cancel", WIN_STARTWIN_CANCEL, "BUTTON", BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 207, 180, 48, 14
+@@ -28,13 +28,13 @@
+ 	CONTROL "&Fullscreen", IDCFULLSCREEN, "BUTTON", BS_CHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 148, 8, 49, 10
+ 	CONTROL "&3D Video mode:",   -1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 5, 24, 50, 8
+ 	CONTROL "",            IDC3DVMODE, "COMBOBOX", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP, 60, 22, 80, 56
+-	CONTROL "&Always show this window at startup", IDCALWAYSSHOW, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 118, 116, 140, 8
++    CONTROL "&Show window on startup", IDCALWAYSSHOW, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 148, 24, 90, 8
+ END
+ 
+ #define FILEVER        1,9,9,9
+ #define PRODUCTVER     1,9,9,9
+-#define STRFILEVER     "2.0.0devel\0"
+-#define STRPRODUCTVER  "2.0.0devel\0"
++#define STRFILEVER     "2.0.0custom\0"
++#define STRPRODUCTVER  "2.0.0custom\0"
+ 
+ VS_VERSION_INFO VERSIONINFO
+  FILEVERSION FILEVER
+@@ -53,7 +53,7 @@
+     BEGIN
+         BLOCK "040904b0"
+         BEGIN
+-            VALUE "FileDescription", "Mapster32 for EDuke32"
++            VALUE "FileDescription", "Mapster32 for EDuke32 (Custom)"
+             VALUE "FileVersion", STRFILEVER
+             VALUE "InternalName", "Mapster32"
+             VALUE "LegalCopyright", "Copyright © 2018 EDuke32 Developers, 1996, 2003 3D Realms Entertainment"
+Index: source/duke3d/rsrc/gameres.rc
+===================================================================
+--- source/duke3d/rsrc/gameres.rc	(revision 8133)
++++ source/duke3d/rsrc/gameres.rc	(working copy)
+@@ -10,7 +10,7 @@
+ CAPTION "Startup"
+ FONT 8, "MS Shell Dlg"
+ BEGIN
+-    CONTROL "", WIN_STARTWIN_BITMAP, "STATIC", SS_BITMAP | SS_CENTERIMAGE | WS_CHILD | WS_VISIBLE, 0, 0, 66, 172
++    CONTROL "", WIN_STARTWIN_BITMAP, "STATIC", SS_BITMAP | SS_CENTERIMAGE | WS_CHILD | WS_VISIBLE, 0, 0, 140, 400 // increased to fit AMC banner
+     CONTROL "", WIN_STARTWIN_TABCTL, WC_TABCONTROL, WS_CLIPSIBLINGS | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 5, 5, 250, 170
+     CONTROL "&Start", WIN_STARTWIN_START, "BUTTON", BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 154, 180, 48, 14
+     CONTROL "&Cancel", WIN_STARTWIN_CANCEL, "BUTTON", BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 207, 180, 48, 14
+@@ -31,18 +31,18 @@
+     CONTROL "Input devices:", -1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 5, 20, 50, 8
+     CONTROL "",               IDCINPUT, "COMBOBOX", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP, 60, 19, 86, 56
+     CONTROL "&Game:", 	  -1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 5, 35, 100, 8
+-    CONTROL "",               IDCDATA, "LISTBOX", LBS_NOINTEGRALHEIGHT | LBS_USETABSTOPS | LBS_STANDARD | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 10, 45, 226, 43
++    CONTROL "",               IDCDATA, "LISTBOX", LBS_NOINTEGRALHEIGHT | LBS_USETABSTOPS | LBS_STANDARD | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 10, 45, 226, 150
+ 
+-    CONTROL "Custom game content &directory:", -1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 5, 90, 160, 8
+-    CONTROL "",               IDCGAMEDIR, "COMBOBOX", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP, 10, 99, 226, 156
+-    CONTROL "&Enable ""autoload"" folder", IDCAUTOLOAD, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 5, 116, 100, 8
+-    CONTROL "&Always show this window at startup", IDCALWAYSSHOW, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 118, 116, 140, 8
++    CONTROL "Custom game content &directory:", -1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 5, 197, 160, 8
++    CONTROL "",               IDCGAMEDIR, "COMBOBOX", CBS_DROPDOWNLIST | WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP, 10, 206, 226, 156
++    CONTROL "&Enable ""autoload"" folder", IDCAUTOLOAD, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 5, 223, 100, 8
++    CONTROL "&Always show this window at startup", IDCALWAYSSHOW, "BUTTON", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 118, 223, 140, 8
+ END
+ 
+ #define FILEVER        1,9,9,9
+ #define PRODUCTVER     1,9,9,9
+-#define STRFILEVER     "2.0.0devel\0"
+-#define STRPRODUCTVER  "2.0.0devel\0"
++#define STRFILEVER     "2.0.0custom\0"
++#define STRPRODUCTVER  "2.0.0custom\0"
+ 
+ VS_VERSION_INFO VERSIONINFO
+  FILEVERSION FILEVER
+@@ -61,7 +61,7 @@
+     BEGIN
+         BLOCK "040904b0"
+         BEGIN
+-            VALUE "FileDescription", "EDuke32"
++            VALUE "FileDescription", "EDuke32 (Custom)"
+             VALUE "FileVersion", STRFILEVER
+             VALUE "InternalName", "EDuke32"
+             VALUE "LegalCopyright", "Copyright © 2018 EDuke32 Developers, 1996, 2003 3D Realms Entertainment"
+Index: source/duke3d/src/astub.cpp
+===================================================================
+--- source/duke3d/src/astub.cpp	(revision 8133)
++++ source/duke3d/src/astub.cpp	(working copy)
+@@ -67,20 +67,34 @@
+ # undef stat
+ #endif
+ 
+-const char* AppProperName = "Mapster32";
++const char* AppProperName = "Mapster32 (Custom)";
+ const char* AppTechnicalName = "mapster32";
+ 
+-#if defined(_WIN32)
+-#define DEFAULT_GAME_EXEC "eduke32.exe"
+-#define DEFAULT_GAME_LOCAL_EXEC "eduke32.exe"
+-#elif defined(__APPLE__)
+-#define DEFAULT_GAME_EXEC "EDuke32.app/Contents/MacOS/eduke32"
+-#define DEFAULT_GAME_LOCAL_EXEC "EDuke32.app/Contents/MacOS/eduke32"
++#ifdef AMC_BUILD
++    #if defined(_WIN32)
++       #define DEFAULT_GAME_EXEC "amctc.exe"
++       #define DEFAULT_GAME_LOCAL_EXEC "amctc.exe"
++    #elif defined(__APPLE__)
++       #define DEFAULT_GAME_EXEC "EDuke32.app/Contents/MacOS/amctc"
++       #define DEFAULT_GAME_LOCAL_EXEC "EDuke32.app/Contents/MacOS/amctc"
++    #else
++       #define DEFAULT_GAME_EXEC "amctc"
++       #define DEFAULT_GAME_LOCAL_EXEC "./amctc"
++    #endif
+ #else
+-#define DEFAULT_GAME_EXEC "eduke32"
+-#define DEFAULT_GAME_LOCAL_EXEC "./eduke32"
++    #if defined(_WIN32)
++       #define DEFAULT_GAME_EXEC "eduke32.exe"
++       #define DEFAULT_GAME_LOCAL_EXEC "eduke32.exe"
++    #elif defined(__APPLE__)
++       #define DEFAULT_GAME_EXEC "EDuke32.app/Contents/MacOS/eduke32"
++       #define DEFAULT_GAME_LOCAL_EXEC "EDuke32.app/Contents/MacOS/eduke32"
++    #else
++       #define DEFAULT_GAME_EXEC "eduke32"
++       #define DEFAULT_GAME_LOCAL_EXEC "./eduke32"
+ #endif
+ 
++
++#endif
+ const char* DefaultGameExec = DEFAULT_GAME_EXEC;
+ const char* DefaultGameLocalExec = DEFAULT_GAME_LOCAL_EXEC;
+ 
+@@ -8092,7 +8106,7 @@
+               "-usecwd\t\t\tRead game data and configuration file from working directory\n"
+               "\n-?, -help, --help\t\tDisplay this help message and exit"
+               ;
+-    Bsprintf(tempbuf, "Mapster32 %s", s_buildRev);
++    Bsprintf(tempbuf, "Mapster32 (Custom)\n %s", s_buildRev);
+     wm_msgbox(tempbuf, "%s", s);
+ }
+ 
+@@ -8509,7 +8523,7 @@
+ 
+     OSD_SetLogFile("mapster32.log");
+     OSD_SetVersion("Mapster32",0,2);
+-    initprintf("Mapster32 %s\n", s_buildRev);
++    initprintf("Mapster32 (Custom) %s\n", s_buildRev);
+     PrintBuildInfo();
+ 
+     G_CheckCommandLine(argc,argv);
+@@ -10034,8 +10048,7 @@
+ 
+     getmessageleng = 0;
+     getmessagetimeoff = 0;
+-
+-    Bsprintf(apptitle, "Mapster32 %s", s_buildRev);
++    Bsprintf(apptitle, "Mapster32 (Custom) %s", s_buildRev);
+     autosavetimer = (int32_t) totalclock+120*autosave;
+ 
+     registerosdcommands();
+Index: source/duke3d/src/common.cpp
+===================================================================
+--- source/duke3d/src/common.cpp	(revision 8133)
++++ source/duke3d/src/common.cpp	(working copy)
+@@ -67,7 +67,10 @@
+ 
+ const char *G_DefaultGrpFile(void)
+ {
+-#ifndef EDUKE32_STANDALONE
++#ifdef AMC_BUILD
++    return "(none)";
++#else
++ #ifndef EDUKE32_STANDALONE
+     if (DUKE)
+         return defaultgamegrp[GAME_DUKE];
+     else if (NAPALM)
+@@ -78,12 +81,16 @@
+         return defaultgamegrp[GAME_NAM];
+ 
+     return defaultgamegrp[0];
+-#else
++ #else
+     return "(none)";
++ #endif
+ #endif
+ }
+ const char *G_DefaultDefFile(void)
+ {
++#ifdef AMC_BUILD
++    return "(none)";
++#else
+ #ifndef EDUKE32_STANDALONE
+     if (DUKE)
+         return defaultdeffilename[GAME_DUKE];
+@@ -108,6 +115,7 @@
+ #else
+     return "(none)";
+ #endif
++#endif
+ }
+ const char *G_DefaultConFile(void)
+ {
+@@ -344,6 +352,7 @@
+     }
+ 
+     // JBF 20031220: Because it's annoying renaming GRP files whenever I want to test different game data
++#ifndef AMC_BUILD
+ #ifndef EDUKE32_STANDALONE
+     if (g_grpNamePtr == NULL)
+     {
+@@ -356,6 +365,7 @@
+         }
+     }
+ #endif
++#endif
+ }
+ 
+ void G_ScanGroups(void)
+@@ -581,6 +591,7 @@
+ #if defined EDUKE32_OSX || defined __linux__ || defined EDUKE32_BSD
+ static void G_AddSteamPaths(const char *basepath)
+ {
++    #ifndef AMC_BUILD
+     char buf[BMAX_PATH];
+ 
+     // Duke Nukem 3D: Megaton Edition (Steam)
+@@ -610,6 +621,7 @@
+     // WWII GI (Steam)
+     Bsnprintf(buf, sizeof(buf), "%s/steamapps/common/World War II GI/WW2GI", basepath);
+     addsearchpath_user(buf, SEARCHPATH_WW2GI);
++    #endif
+ }
+ 
+ // A bare-bones "parser" for Valve's KeyValues VDF format.
+@@ -784,6 +796,7 @@
+ 
+ void G_AddSearchPaths(void)
+ {
++#ifndef AMC_BUILD
+ #ifndef EDUKE32_STANDALONE
+ #ifndef EDUKE32_TOUCH_DEVICES
+ #if defined __linux__ || defined EDUKE32_BSD
+@@ -926,6 +939,7 @@
+ #endif
+ #endif
+ #endif
++#endif
+ }
+ 
+ void G_CleanupSearchPaths(void)
+Index: source/duke3d/src/common_game.h
+===================================================================
+--- source/duke3d/src/common_game.h	(revision 8133)
++++ source/duke3d/src/common_game.h	(working copy)
+@@ -34,8 +34,9 @@
+ #define GAMEFLAG_SHAREWARE  0x00000020
+ #define GAMEFLAG_DUKEBETA   0x00000060 // includes 0x20 since it's a shareware beta
+ #define GAMEFLAG_FURY       0x00000080
+-#define GAMEFLAG_STANDALONE 0x00000100
+-#define GAMEFLAGMASK        0x000000FF // flags allowed from grpinfo
++#define GAMEFLAG_AMCTC      0x00000100
++#define GAMEFLAG_STANDALONE 0x00001000
++#define GAMEFLAGMASK        0x00000FFF // flags allowed from grpinfo
+ 
+ extern struct grpfile_t const *g_selectedGrp;
+ 
+@@ -50,6 +51,7 @@
+ #define SHAREWARE           (g_gameType & GAMEFLAG_SHAREWARE)
+ #define DUKEBETA            ((g_gameType & GAMEFLAG_DUKEBETA) == GAMEFLAG_DUKEBETA)
+ #define FURY                (g_gameType & GAMEFLAG_FURY)
++#define AMCTC               (g_gameType & GAMEFLAG_AMCTC)
+ 
+ enum Games_t {
+     GAME_DUKE = 0,
+Index: source/duke3d/src/game.cpp
+===================================================================
+--- source/duke3d/src/game.cpp	(revision 8133)
++++ source/duke3d/src/game.cpp	(working copy)
+@@ -104,7 +104,7 @@
+ // Ideally, we would look at our memory usage on our most cramped platform and figure out
+ // how much of that is needed for the underlying OS and things like SDL instead of guessing
+ #ifndef GEKKO
+-int32_t MAXCACHE1DSIZE = (96*1024*1024);
++int32_t MAXCACHE1DSIZE = (512*1024*1024); // raised from 96 for AMC -- lower values crash
+ #else
+ int32_t MAXCACHE1DSIZE = (8*1024*1024);
+ #endif
+Index: source/duke3d/src/gamedefs.h
+===================================================================
+--- source/duke3d/src/gamedefs.h	(revision 8133)
++++ source/duke3d/src/gamedefs.h	(working copy)
+@@ -35,7 +35,13 @@
+ #endif
+ 
+ // config file name
++#ifdef AMC_BUILD
++// Keep this the same for backwards-compatibility (certain progress gamevars are stored in here)
++// Ugly, but unfortunately necessary
++#define SETUPFILENAME "eduke32.cfg" 
++#else
+ #define SETUPFILENAME APPBASENAME ".cfg"
++#endif
+ 
+ // KEEPINSYNC mact/include/_control.h, build/src/sdlayer.cpp
+ #define MAXJOYBUTTONS 32
+Index: source/duke3d/src/grpscan.cpp
+===================================================================
+--- source/duke3d/src/grpscan.cpp	(revision 8133)
++++ source/duke3d/src/grpscan.cpp	(working copy)
+@@ -38,6 +38,7 @@
+ // custom GRP support for the startup window, file format reflects the structure below
+ #define GAMELISTFILE "games.list"
+ //    name                                     crc          size      flags                         dependency  scriptname     postprocessing
++#ifndef AMC_BUILD
+ static internalgrpinfo_t const internalgrpfiles[] =
+ {
+     { "Duke Nukem 3D",                         DUKE13_CRC,  26524524, GAMEFLAG_DUKE,                         0, NULL, NULL},
+@@ -70,7 +71,10 @@
+     { "WWII GI",                               WW2GI_CRC,   77939508, GAMEFLAG_WW2GI,                        0, NULL, NULL},
+     { "Platoon Leader",                        PLATOONL_CRC, 37852572, GAMEFLAG_WW2GI|GAMEFLAG_ADDON,        WW2GI_CRC, "PLATOONL.DEF", NULL},
+ };
++#else
++static internalgrpinfo_t const internalgrpfiles[] = {};
+ #endif
++#endif
+ 
+ struct grpfile_t *foundgrps = NULL;
+ struct grpinfo_t *listgrps = NULL;
+@@ -81,7 +85,7 @@
+ 
+     if (!script)
+         return;
+-
++#ifndef AMC_BUILD
+ #ifndef EDUKE32_STANDALONE
+     scriptfile_addsymbolvalue("GAMEFLAG_DUKE", GAMEFLAG_DUKE);
+     scriptfile_addsymbolvalue("GAMEFLAG_ADDON", GAMEFLAG_DUKE|GAMEFLAG_ADDON);
+@@ -105,6 +109,7 @@
+     scriptfile_addsymbolvalue("NAPALM_CRC", NAPALM_CRC);
+     scriptfile_addsymbolvalue("WW2GI_CRC", WW2GI_CRC);
+ #endif
++#endif
+ 
+     while (!scriptfile_eof(script))
+     {
+@@ -213,6 +218,7 @@
+ 
+ static void LoadGameList(void)
+ {
++#ifndef AMC_BUILD
+ #ifndef EDUKE32_STANDALONE
+     for (size_t i = 0; i < ARRAY_SIZE(internalgrpfiles); i++)
+     {
+@@ -233,6 +239,7 @@
+         listgrps = fg;
+     }
+ #endif
++#endif
+ 
+ #ifdef USE_PHYSFS
+     auto const base = PHYSFS_getBaseDir();
+Index: source/duke3d/src/menus.cpp
+===================================================================
+--- source/duke3d/src/menus.cpp	(revision 8133)
++++ source/duke3d/src/menus.cpp	(working copy)
+@@ -39,6 +39,7 @@
+ // common positions
+ #define MENU_MARGIN_REGULAR 40
+ #define MENU_MARGIN_WIDE    32
++#define MENU_MARGIN_AMC_SK  36
+ #define MENU_MARGIN_CENTER  160
+ #define MENU_HEIGHT_CENTER  100
+ 
+@@ -145,6 +146,10 @@
+ }
+ static void Menu_DrawCursorCommon(int32_t x, int32_t y, int32_t z, int32_t picnum, int32_t ydim_upper = 0, int32_t ydim_lower = ydim-1)
+ {
++    if (AMCTC) {
++        z *= 2;
++	z /= 5;
++    }
+     rotatesprite_(x, y, z, 0, picnum, Menu_CursorShade(), 0, 2|8, 0, 0, 0, ydim_upper, xdim-1, ydim_lower);
+ }
+ static void Menu_DrawCursorLeft(int32_t x, int32_t y, int32_t z)
+@@ -201,13 +206,13 @@
+ 
+ //                                      emptychar x,y       between x,y         zoom                cursorLeft          cursorCenter        cursorScale         textflags
+ //                                      tilenum             shade_deselected    shade_disabled      pal                 pal_selected        pal_deselected      pal_disabled
+-MenuFont_t MF_Redfont =               { { 5<<16, 15<<16 },  { 0, 0 },           65536,              20<<16,             110<<16,            65536,              TEXT_BIGALPHANUM | TEXT_UPPERCASE,
++MenuFont_t MF_Redfont =               { { 5<<16, 15<<16 },  { 0, 0 },           65536,              20<<16,             128<<16,            65536,              TEXT_BIGALPHANUM | TEXT_UPPERCASE,
+                                         -1,                 10,                 0,                  0,                  0,                  0,                  1,
+                                         0,                  0,                  1 };
+-MenuFont_t MF_Bluefont =              { { 5<<16, 7<<16 },   { 0, 0 },           65536,              10<<16,             110<<16,            32768,              0,
++MenuFont_t MF_Bluefont =              { { 5<<16, 7<<16 },   { 0, 0 },           65536,              10<<16,             128<<16,            32768,              0,
+                                         -1,                 10,                 0,                  0,                  10,                 10,                 16,
+                                         0,                  0,                  16 };
+-MenuFont_t MF_Minifont =              { { 4<<16, 5<<16 },   { 1<<16, 1<<16 },   65536,              10<<16,             110<<16,            32768,              0,
++MenuFont_t MF_Minifont =              { { 4<<16, 5<<16 },   { 1<<16, 1<<16 },   65536,              10<<16,             128<<16,            32768,              0,
+                                         -1,                 10,                 0,                  0,                  2,                  2,                  0,
+                                         0,                  0,                  16 };
+ 
+@@ -216,7 +221,11 @@
+ static MenuMenuFormat_t MMF_Top_Episode =          { {  MENU_MARGIN_CENTER<<16, 48<<16, }, -(190<<16) };
+ static MenuMenuFormat_t MMF_Top_NewGameCustom =    { {  MENU_MARGIN_CENTER<<16, 48<<16, }, -(190<<16) };
+ static MenuMenuFormat_t MMF_Top_NewGameCustomSub = { {  MENU_MARGIN_CENTER<<16, 48<<16, }, -(190<<16) };
++#ifdef AMC_BUILD
++static MenuMenuFormat_t MMF_Top_Skill =            { {  MENU_MARGIN_AMC_SK<<16, 58<<16, }, -(190<<16) };
++#else
+ static MenuMenuFormat_t MMF_Top_Skill =            { {  MENU_MARGIN_CENTER<<16, 58<<16, }, -(190<<16) };
++#endif
+ static MenuMenuFormat_t MMF_Top_Options =          { {  MENU_MARGIN_CENTER<<16, 38<<16, }, -(190<<16) };
+ static MenuMenuFormat_t MMF_Top_Joystick_Network = { {  MENU_MARGIN_CENTER<<16, 70<<16, }, -(190<<16) };
+ static MenuMenuFormat_t MMF_BigOptions =           { {    MENU_MARGIN_WIDE<<16, 38<<16, }, -(190<<16) };
+@@ -394,7 +403,11 @@
+ static MenuEntry_t *MEL_NEWGAMECUSTOM[MAXMENUGAMEPLAYENTRIES];
+ static MenuEntry_t *MEL_NEWGAMECUSTOMSUB[MAXMENUGAMEPLAYENTRIES];
+ 
++#ifdef AMC_BUILD
++static MenuEntry_t ME_SKILL_TEMPLATE = MAKE_MENUENTRY( NULL, &MF_Redfont, &MEF_LeftMenu, &MEO_NULL, Link );
++#else
+ static MenuEntry_t ME_SKILL_TEMPLATE = MAKE_MENUENTRY( NULL, &MF_Redfont, &MEF_CenterMenu, &MEO_NULL, Link );
++#endif
+ static MenuEntry_t ME_SKILL[MAXSKILLS];
+ static MenuEntry_t *MEL_SKILL[MAXSKILLS];
+ 
+@@ -1403,7 +1416,7 @@
+ 
+ static MenuMenu_t M_MAIN = MAKE_MENUMENU( NoTitle, &MMF_Top_Main, MEL_MAIN );
+ static MenuMenu_t M_MAIN_INGAME = MAKE_MENUMENU( NoTitle, &MMF_Top_Main, MEL_MAIN_INGAME );
+-static MenuMenu_t M_EPISODE = MAKE_MENUMENU( "Select An Episode", &MMF_Top_Episode, MEL_EPISODE );
++static MenuMenu_t M_EPISODE = MAKE_MENUMENU( "Select Episode", &MMF_Top_Episode, MEL_EPISODE );
+ static MenuMenu_t M_SKILL = MAKE_MENUMENU( "Select Skill", &MMF_Top_Skill, MEL_SKILL );
+ static MenuMenu_t M_NEWGAMECUSTOM = MAKE_MENUMENU( s_NewGame, &MMF_Top_NewGameCustom, MEL_NEWGAMECUSTOM );
+ static MenuMenu_t M_NEWGAMECUSTOMSUB = MAKE_MENUMENU( s_NewGame, &MMF_Top_NewGameCustomSub, MEL_NEWGAMECUSTOMSUB );
+Index: source/duke3d/src/player.cpp
+===================================================================
+--- source/duke3d/src/player.cpp	(revision 8133)
++++ source/duke3d/src/player.cpp	(working copy)
+@@ -4629,13 +4629,14 @@
+ }
+ 
+ 
+-static void P_ClampZ(DukePlayer_t* const pPlayer, int const sectorLotag, int32_t const ceilZ, int32_t const floorZ)
++static void P_ClampZ(DukePlayer_t* const pPlayer, int const sectorLotag, int32_t const ceilZ, int32_t const floorZ, int const playerShrunk)
+ {
+     if ((sectorLotag != ST_2_UNDERWATER || ceilZ != pPlayer->truecz) && pPlayer->pos.z < ceilZ + PMINHEIGHT)
+         pPlayer->pos.z = ceilZ + PMINHEIGHT;
+-
+-    if (sectorLotag != ST_1_ABOVE_WATER && pPlayer->pos.z > floorZ - PMINHEIGHT)
+-        pPlayer->pos.z = floorZ - PMINHEIGHT;
++    
++    if (!playerShrunk)
++        if (sectorLotag != ST_1_ABOVE_WATER && pPlayer->pos.z > floorZ - PMINHEIGHT)
++            pPlayer->pos.z = floorZ - PMINHEIGHT;
+ }
+ 
+ #define GETZRANGECLIPDISTOFFSET 8
+@@ -4645,8 +4646,10 @@
+     if (g_player[playerNum].playerquitflag == 0)
+         return;
+ 
+-    auto const pPlayer = g_player[playerNum].ps;
+-    auto const pSprite = &sprite[pPlayer->i];
++    auto const pPlayer       = g_player[playerNum].ps;
++    auto const pSprite       = &sprite[pPlayer->i];
++    int const  playerShrunk  = (pSprite->yrepeat < 32);
++    int const  playerSlide   = AMCTC && (pSprite->yrepeat == 35); // arbitrary value (regular player yrepeat is 36)
+ 
+     ++pPlayer->player_par;
+ 
+@@ -4695,6 +4698,9 @@
+     pPlayer->spritebridge = 0;
+     pPlayer->sbs          = 0;
+ 
++    if (playerShrunk)
++	getzrange((vec3_t *)pPlayer, pPlayer->cursectnum, &ceilZ, &highZhit, &floorZ, &lowZhit, pPlayer->clipdist - 1, CLIPMASK0);
++
+ #ifdef YAX_ENABLE
+     yax_getzsofslope(pPlayer->cursectnum, pPlayer->pos.x, pPlayer->pos.y, &pPlayer->truecz, &pPlayer->truefz);
+ #else
+@@ -4887,7 +4893,6 @@
+     int                  velocityModifier = TICSPERFRAME;
+     const uint8_t *const weaponFrame      = &pPlayer->kickback_pic;
+     int                  floorZOffset     = 40;
+-    int const            playerShrunk     = (pSprite->yrepeat < 32);
+     vec3_t const         backupPos        = pPlayer->opos;
+ 
+     if (pPlayer->on_crane >= 0)
+@@ -5331,8 +5336,15 @@
+     // This makes the player view lower when shrunk. This needs to happen before clipmove().
+ #ifndef EDUKE32_STANDALONE
+     if (!FURY && pPlayer->jetpack_on == 0 && sectorLotag != ST_2_UNDERWATER && sectorLotag != ST_1_ABOVE_WATER && playerShrunk)
+-        pPlayer->pos.z += ZOFFSET5 - (sprite[pPlayer->i].yrepeat<<8);
++        pPlayer->pos.z += ZOFFSET5 - ((sprite[pPlayer->i].yrepeat-4)<<8);
+ #endif
++
++
++// Update pos.z before clipmove() during sliding to enable old behavior in AMC TC
++if (playerSlide && !pPlayer->jetpack_on && sectorLotag != ST_2_UNDERWATER)
++    pPlayer->pos.z += pPlayer->vel.z;
++        
++
+ HORIZONLY:;
+     if (ud.noclip)
+     {
+@@ -5340,6 +5352,7 @@
+         pPlayer->pos.y += pPlayer->vel.y >> 14;
+         updatesector(pPlayer->pos.x, pPlayer->pos.y, &pPlayer->cursectnum);
+         changespritesect(pPlayer->i, pPlayer->cursectnum);
++        
+     }
+     else
+     {
+@@ -5363,13 +5376,15 @@
+         }
+ #endif
+ 
+-        P_ClampZ(pPlayer, sectorLotag, ceilZ, floorZ);
++     	P_ClampZ(pPlayer, sectorLotag, ceilZ, floorZ, playerShrunk);
+ 
+-        int const touchObject = FURY ? clipmove(&pPlayer->pos, &pPlayer->cursectnum, pPlayer->vel.x + (pPlayer->fric.x << 9),
+-                                                   pPlayer->vel.y + (pPlayer->fric.y << 9), pPlayer->clipdist, (4L << 8), stepHeight, CLIPMASK0)
+-                                        : clipmove(&pPlayer->pos, &pPlayer->cursectnum, pPlayer->vel.x, pPlayer->vel.y, pPlayer->clipdist,
+-                                                   (4L << 8), stepHeight, CLIPMASK0);
+ 
++        int touchObject = 0;
++
++        if (FURY) touchObject = clipmove(&pPlayer->pos, &pPlayer->cursectnum, pPlayer->vel.x + (pPlayer->fric.x << 9), pPlayer->vel.y + (pPlayer->fric.y << 9), pPlayer->clipdist, (4L << 8), stepHeight, CLIPMASK0);
++        else if (AMCTC && playerSlide) touchObject = clipmove(&pPlayer->pos, &pPlayer->cursectnum, pPlayer->vel.x, pPlayer->vel.y, pPlayer->clipdist, (4L << 8), getZRangeOffset, CLIPMASK0);
++        else touchObject = clipmove(&pPlayer->pos, &pPlayer->cursectnum, pPlayer->vel.x, pPlayer->vel.y, pPlayer->clipdist, (4L << 8), stepHeight, CLIPMASK0);
++
+         if (touchObject)
+             P_CheckTouchDamage(pPlayer, touchObject);
+ 
+@@ -5390,12 +5405,13 @@
+         }
+         else if (sectorLotag != ST_2_UNDERWATER && sectorLotag != ST_1_ABOVE_WATER)
+             pPlayer->pyoff = 0;
++        
++        if (!playerSlide && sectorLotag != ST_2_UNDERWATER)
++            pPlayer->pos.z += pPlayer->vel.z;
+ 
+-        if (sectorLotag != ST_2_UNDERWATER)
+-            pPlayer->pos.z += pPlayer->vel.z;
+     }
+ 
+-    P_ClampZ(pPlayer, sectorLotag, ceilZ, floorZ);
++    P_ClampZ(pPlayer, sectorLotag, ceilZ, floorZ, playerShrunk);
+ 
+     if (pPlayer->cursectnum >= 0)
+     {
+Index: source/duke3d/src/savegame.cpp
+===================================================================
+--- source/duke3d/src/savegame.cpp	(revision 8133)
++++ source/duke3d/src/savegame.cpp	(working copy)
+@@ -33,6 +33,7 @@
+ #include "vfs.h"
+ 
+ static OutputFileCounter savecounter;
++char previousboardfilename[BMAX_PATH];
+ 
+ // For storing pointers in files.
+ //  back_p==0: ptr -> "small int"
+@@ -467,9 +468,15 @@
+             else if (g_mapInfo[mapIdx].filename)
+                 Bstrcpy(currentboardfilename, g_mapInfo[mapIdx].filename);
+ 
++
+             if (currentboardfilename[0])
+             {
+-                artSetupMapArt(currentboardfilename);
++                // only setup art if map differs from previous
++		if (!previousboardfilename[0] || previousboardfilename != currentboardfilename)
++                {
++                    artSetupMapArt(currentboardfilename);
++                }
++                Bstrcpy(previousboardfilename, currentboardfilename);
+                 append_ext_UNSAFE(currentboardfilename, ".mhk");
+                 engineLoadMHK(currentboardfilename);
+             }
+@@ -666,7 +673,12 @@
+ 
+     if (currentboardfilename[0])
+     {
+-        artSetupMapArt(currentboardfilename);
++        // only setup art if map differs from previous
++        if (!previousboardfilename[0] || Bstrcmp(previousboardfilename, currentboardfilename))
++        {
++            artSetupMapArt(currentboardfilename);
++        }
++        Bstrcpy(previousboardfilename, currentboardfilename);
+         append_ext_UNSAFE(currentboardfilename, ".mhk");
+         engineLoadMHK(currentboardfilename);
+     }
+Index: source/duke3d/src/screens.cpp
+===================================================================
+--- source/duke3d/src/screens.cpp	(revision 8133)
++++ source/duke3d/src/screens.cpp	(working copy)
+@@ -704,7 +704,7 @@
+ 
+ #if !defined DEBUG_ALLOCACHE_AS_MALLOC
+ extern int32_t cacnum;
+-extern cactype cac [];
++extern cactype * cac;
+ #endif
+ 
+ static void G_ShowCacheLocks(void)
+Index: source/duke3d/src/sector.cpp
+===================================================================
+--- source/duke3d/src/sector.cpp	(revision 8133)
++++ source/duke3d/src/sector.cpp	(working copy)
+@@ -2316,7 +2316,7 @@
+                 if ((PN(spriteNum) != DRONE) && (PN(spriteNum) != ROTATEGUN) && (PN(spriteNum) != COMMANDER)
+                     && (PN(spriteNum) < GREENSLIME || PN(spriteNum) > GREENSLIME + 7))
+                     if (sprite[dmgSrc].picnum != FREEZEBLAST)
+-                        if (!A_CheckSpriteFlags(spriteNum, SFLAG_BADGUY) || A_CheckSpriteFlags(spriteNum, SFLAG_HURTSPAWNBLOOD))
++                        if ((!AMCTC && !A_CheckSpriteFlags(spriteNum, SFLAG_BADGUY)) || A_CheckSpriteFlags(spriteNum, SFLAG_HURTSPAWNBLOOD))
+                         {
+                             int const newSprite = A_Spawn(dmgSrc, JIBS6);
+                             sprite[newSprite].z += ZOFFSET6;
+@@ -2331,7 +2331,7 @@
+ 
+                 if (damageOwner >= 0 && sprite[damageOwner].picnum == APLAYER && PN(spriteNum) != ROTATEGUN && PN(spriteNum) != DRONE)
+                     if (g_player[P_Get(damageOwner)].ps->curr_weapon == SHOTGUN_WEAPON)
+-                        if (!A_CheckSpriteFlags(spriteNum, SFLAG_BADGUY) || A_CheckSpriteFlags(spriteNum, SFLAG_HURTSPAWNBLOOD))
++                        if ((!AMCTC && !A_CheckSpriteFlags(spriteNum, SFLAG_BADGUY)) || A_CheckSpriteFlags(spriteNum, SFLAG_HURTSPAWNBLOOD))
+                         {
+                             A_Shoot(spriteNum, BLOODSPLAT3);
+                             A_Shoot(spriteNum, BLOODSPLAT1);
+Index: source/duke3d/src/sounds.h
+===================================================================
+--- source/duke3d/src/sounds.h	(revision 8133)
++++ source/duke3d/src/sounds.h	(working copy)
+@@ -36,7 +36,9 @@
+ #endif
+ 
+ // KEEPINSYNC lunatic/con_lang.lua
+-#define MAXSOUNDS           4096
++// Increased from 4096 for AMCTC
++#define MAXSOUNDS           8192
++
+ #define MAXSOUNDINSTANCES   8
+ #define LOUDESTVOLUME       111
+ #define MUSIC_ID            -65536
+Index: source/duke3d/src/sounds_mapster32.h
+===================================================================
+--- source/duke3d/src/sounds_mapster32.h	(revision 8133)
++++ source/duke3d/src/sounds_mapster32.h	(working copy)
+@@ -44,7 +44,9 @@
+     char *definedname;  // new
+ } sound_t;
+ 
+-#define MAXSOUNDS 4096
++// Increased from 4096 for AMC TC
++#define MAXSOUNDS 8192
++
+ extern sound_t g_sounds[MAXSOUNDS];
+ 
+ extern int32_t g_numEnvSoundsPlaying;
