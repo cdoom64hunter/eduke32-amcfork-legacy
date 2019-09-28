@@ -9,7 +9,7 @@ The changes that have been made to the engine are listed at the bottom of this d
 
 Instead, to play Duke Nukem 3D, please download an official *EDuke32* release from here: https://www.eduke32.com/ 
 
-In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**.
+In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**. We also provide pre-compiled executables for 64 and 32 bit Windows (compiled using gcc 9.2).
 
 *EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, 
 which have been included in the base directory of this repository as well, under gpl-2.0.txt and buildlic.txt.
@@ -72,7 +72,7 @@ We hereby release our changes to the engine under the same licenses.*
    * Tueidj
 
 # Build Instructions:
-64-bit Windows binaries of this fork are included directly with the download for the AMC TC 3.6.
+Precompiled 64-bit Windows binaries of this fork are included directly with the download for the AMC TC 3.6, and can also be found in the ```windows-binaries``` subfolder of this repository.
  
 If you are running on a different architecture/OS, or need to build the binaries yourself for other reasons, install the required dependencies on your system, and then run the makefile in the ./eduke32-amcfork directory.
 
