@@ -1,9 +1,12 @@
 # EDuke32 Fork for the AMC TC
-This is a fork of the EDuke32 engine that makes a number of changes specifically for the AMC TC : https://www.moddb.com/games/the-amc-tc
+This is a fork of the EDuke32 engine that makes a number of changes specifically for the AMC TC.
+
+Link to the game: https://www.moddb.com/games/the-amc-tc
+
 It alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. 
 
-The changes that have been made to the engine are listed at the bottom of this document, and the specifics can be viewed in the corresponding SVN diff file.
-We stress that this build is NOT INTENDED to be used with Duke Nukem 3D or ANY of its expansions.  Do not make attempts to do so, or else things will inevitably break.
+The changes that have been made to the engine are listed at the bottom of this document, and the specifics can be viewed in the corresponding SVN diff file. We stress that this build is NOT INTENDED to be used with Duke Nukem 3D or ANY of its expansions.  Do not make attempts to do so, or else things will inevitably break.
+
 Instead, to play Duke Nukem 3D, please download an official eduke32 release from here: https://www.eduke32.com/ 
 
 In this repo, we provide the source code for our fork of eduke32, a patch file listing the changes that have been made to the respective revision this fork was based on,
@@ -12,7 +15,7 @@ as well as the png images used for the startup banner as well as the game icons,
 EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, which have been included in the base directory of this repo as well. 
 We hereby release our changes to the engine under the same licenses.
 
-### This fork has been authored by:
+### This fork has been created by:
 * Sangluss
 * Doom64hunter
 
@@ -22,37 +25,38 @@ We hereby release our changes to the engine under the same licenses.
 ### Art by:
 * AliCatGamer
 * Sebabdukeboss20 
- 
+
 Huge thanks go out to the EDuke32 team for assisting with feature requests and bugfixes over the many years of the AMC TC's existence:
 
 ### EDuke32 Credits:
 * Developers:
-** Richard "TerminX" Gobeille
-** Evan "Hendricks266" Ramos
-** Alex "Pogokeen" Dawson
-** Pierre-Loup "Plagman"  Griffais
-** Philipp "Helixhorned" Kutin
+   * Richard "TerminX" Gobeille
+   * Evan "Hendricks266" Ramos
+   * Alex "Pogokeen" Dawson
+   * Pierre-Loup "Plagman"  Griffais
+   * Philipp "Helixhorned" Kutin
 * Special Thanks to:
-** Jonathon "Jonof" Fowler
+   * Jonathon "Jonof" Fowler
 * Uses Build Engine Technology by:
-** Ken "Awesoken" Silverman
+   * Ken "Awesoken" Silverman
 
 # Build Instructions:
+----------------------------------
+64-bit Windows binaries of this fork are included directly with the download for the AMC TC 3.6.
+ 
+If you are running on a different architecture/OS, or need to build the binaries yourself for other reasons, install the required dependencies on your system, and then run the makefile in the ./eduke32-amcfork directory.
 
-Windows binaries of this fork are included directly with the download for the AMC TC 3.6.
+**IMPORTANT NOTE: you will need to use the following parameter:**  ```make -AMCTC=1``` 
 
-If you need to build the binaries yourself, you can follow the instructions on the eduke32 wiki for the respective OS: 
-!!! IMPORTANT NOTE: To build eduke32-amcfork properly, you will need to use the following build parameter: 
-```make -AMCTC=1``` 
-* Windows: https://wiki.eduke32.com/wiki/Building_EDuke32_on_Windows
-* Linux: https://wiki.eduke32.com/wiki/Building_EDuke32_on_Linux
-* MacOS (untested): https://wiki.eduke32.com/wiki/Building_EDuke32_on_macOS
-
-In short: Install the required dependencies on your system, and then run the makefile in the ./eduke32-amcfork directory with the parameter `-AMCTC=1`.
 Afterwards, you can simply copy the resulting binaries to your AMC TC directory, and launch the game. 
 
-The repository is currently based on eduke32 r8133. If you want to try a different version, 
-you can use the diff file as a patch to a local copy of the official eduke32 SVN. 
+For further information, see the instructions on the eduke32 wiki for the respective OS. 
+   * Windows: https://wiki.eduke32.com/wiki/Building_EDuke32_on_Windows
+   * Linux: https://wiki.eduke32.com/wiki/Building_EDuke32_on_Linux
+   * MacOS (untested): https://wiki.eduke32.com/wiki/Building_EDuke32_on_macOS
+
+This fork is currently based on eduke32 r8133. If you want to try a different version, 
+you can use the diff file as a patch to a local copy of the official eduke32 SVN.
 
 ### Mandatory Packages
 * Basic dev environment (GCC >= 4.8, GNU make, etc)
@@ -64,12 +68,11 @@ you can use the diff file as a patch to a local copy of the official eduke32 SVN
 * libvorbis >= 1.1.2
 * libvorbisfile
 * libogg         
-### Optional Packages (but recommended) -- 
+### Optional Packages
 * NASM (highly recommended for i686/32-bit compilation to speed up 8-bit classic software renderer)
 * libFLAC >= 1.2.1
-   
-# Changelist:
 
+# Changelist
 Here you will find a more or less comprehensive list of changes this fork makes to r8133 of the official eduke32 master branch.
 For details, see the included diff file.
 
@@ -93,8 +96,8 @@ For details, see the included diff file.
 * Floor Z-height of the player is only clamped if he is not shrunk. This allows the player to pass under enemies again while in this state, which is currently broken in eduke32 as of this writing.
 * Additional call to getzrange when player is shrunk to allow the player to get crushed by enemies when growing back.
 * Increased the force by which the player is pushed downwards when shrunk. This is also a necessary component to make the player pass under enemies again for the crushing behavior. 
-** In addition, the above allows the player to pass through sprite-bridges when shrunk, a functionality which was utilized in one of our maps.
+   * In addition, the above allows the player to pass through sprite-bridges when shrunk, a functionality which was utilized in one of our maps.
 * Added a check: if player's yrepeat is 35, we assume he's performing a slide kick; and the "old" clipping behavior should kick in. 
-** this means that the z-velocity is added to z-position before clipmove() is called.
-** This re-enables being able to slide through tight gaps. To make sure that this does not affect gameplay elsewhere, we only enable this iff yrepeat = 35.
+   * this means that the z-velocity is added to z-position before clipmove() is called.
+   * This re-enables being able to slide through tight gaps. To make sure that this does not affect gameplay elsewhere, we only enable this iff yrepeat = 35.
 * Disabled hardcoded bloodsplats if SFLAG_BADGUY = 0. These are now implemented in scripts.
