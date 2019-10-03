@@ -1,3 +1,13 @@
+Index: .gitignore
+===================================================================
+--- .gitignore	(revision 8133)
++++ .gitignore	(working copy)
+@@ -65,3 +65,5 @@
+ .DS_Store
+ ._*
+ /source/voidwrap/sdk/
++
++.svn
 Index: Common.mak
 ===================================================================
 --- Common.mak	(revision 8133)
@@ -151,6 +161,34 @@ Index: source/build/src/cache1d.cpp
 +    int cnt = min(maxcacheobjects >> 5, cacnum-1);
  
      while(cnt--)
+     {
+Index: source/build/src/tiles.cpp
+===================================================================
+--- source/build/src/tiles.cpp	(revision 8133)
++++ source/build/src/tiles.cpp	(working copy)
+@@ -37,6 +37,7 @@
+ static picanm_t *g_bakPicAnm;
+ static char * g_bakFakeTile;
+ static char ** g_bakFakeTileData;
++static rottile_t *g_bakRottile;
+ // NOTE: picsiz[] is not backed up, but recalculated when necessary.
+ 
+ //static int32_t artsize = 0;
+@@ -117,6 +118,7 @@
+     RESTORE_MAPART_ARRAY(waloff, g_bakWaloff);
+     RESTORE_MAPART_ARRAY(picanm, g_bakPicAnm);
+     RESTORE_MAPART_ARRAY(faketile, g_bakFakeTile);
++    RESTORE_MAPART_ARRAY(rottile, g_bakRottile);
+ 
+     for (size_t i = 0; i < MAXUSERTILES; ++i)
+     {
+@@ -171,6 +173,7 @@
+     ALLOC_MAPART_ARRAY(picanm, g_bakPicAnm);
+     ALLOC_MAPART_ARRAY(faketile, g_bakFakeTile);
+     ALLOC_MAPART_ARRAY(faketiledata, g_bakFakeTileData);
++    ALLOC_MAPART_ARRAY(rottile, g_bakRottile);
+ 
+     for (bssize_t i=MAXARTFILES_BASE; i<MAXARTFILES_TOTAL; i++)
      {
 Index: source/duke3d/rsrc/buildres.rc
 ===================================================================

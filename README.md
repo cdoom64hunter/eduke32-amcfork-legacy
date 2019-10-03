@@ -123,6 +123,7 @@ For details, see the included diff file.
 * Disabled Duke3D GRP autodetect (and all its various expansions and variations)
 * Added AMC_BUILD compiler flag (used for changing certain hardcoded strings, and the menu layout)
 * Added AMCTC gameflag (used for gameplay and menu alterations)
+* Added a fix for rotated tile HOMs
 
 ## Gameplay changes:
 * Floor Z-height of the player is only clamped if he is not shrunk. This allows the player to pass under enemies again while in this state, which is currently broken in eduke32 as of this writing.
