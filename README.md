@@ -76,7 +76,7 @@ Precompiled 64-bit Windows binaries of this fork are included directly with the 
  
 If you are running on a different architecture/OS, or need to build the binaries yourself for other reasons, install the required dependencies on your system, and then run the makefile in the ./eduke32-amcfork directory.
 
-**IMPORTANT NOTE: you will need to use the following parameter:**  ```make -AMCTC=1``` 
+**IMPORTANT NOTE: you will need to use the following parameter:**  ```make AMCTC=1``` 
 
 Afterwards, you can simply copy the resulting binaries to your AMC TC directory, and launch the game. 
 
