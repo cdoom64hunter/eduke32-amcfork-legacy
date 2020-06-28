@@ -1,9 +1,13 @@
-# EDuke32 Fork for the AMC TC
-This is a fork of the *EDuke32* engine that makes a number of changes specifically for the AMC TC.
+# Legacy EDuke32 AMC Fork based on r8133
+This repository is no longer maintained, but is kept available for legacy purposes. It was created specifically for AMC TC 3.6, and represents the code used for the original release of 3.6.
+
+For more recent builds, see: https://github.com/cdoom64hunter/eduke32-amcfork-revised
+
+## Description
 
 **Link to the game: https://www.moddb.com/games/the-amc-tc**
 
-It alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. These changes are most likely not suitable for a merge with the main eduke32 branch which is why we offer them here.
+This fork alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. These changes are most likely not suitable for a merge with the main eduke32 branch which is why we offer them here.
 
 The changes that have been made to the engine are listed at the bottom of this document, and the specifics can be viewed in the corresponding SVN diff file. **We stress that this build is NOT INTENDED to be used with Duke Nukem 3D or ANY of its expansions.  Do not make attempts to do so, or else things will inevitably break.**
 
