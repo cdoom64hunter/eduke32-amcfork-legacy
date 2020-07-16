@@ -201,6 +201,7 @@ static tokenmap_t const vm_keywords[] =
     { "definequote",            CON_DEFINEQUOTE },
     { "defineskillname",        CON_DEFINESKILLNAME },
     { "definesound",            CON_DEFINESOUND },
+    { "definesoundv",           CON_DEFINESOUNDV },
     { "definevolumeflags",      CON_DEFINEVOLUMEFLAGS },
     { "definevolumename",       CON_DEFINEVOLUMENAME },
     { "defstate",               CON_DEFSTATE },
@@ -5681,6 +5682,7 @@ repeatcase:
             continue;
 
         case CON_DEFINESOUND:
+        case CON_DEFINESOUNDV:
             g_scriptPtr--;
             C_GetNextValue(LABEL_DEFINE);
 
@@ -5755,7 +5757,24 @@ repeatcase:
             g_sounds[k].vo = g_scriptPtr[-1];
             g_scriptPtr -= 5;
 
-            g_sounds[k].volume = 1.f;
+            // Volume ranges from 0 to 16384 where 1024 is default. (i.e. up to 16x increase)
+            if (tw == CON_DEFINESOUNDV)
+            {
+                C_GetNextValue(LABEL_DEFINE);
+                i = g_scriptPtr[-1];
+
+                if (EDUKE32_PREDICT_FALSE((unsigned) i > CON_MAXSOUNDVOLUME))
+                {
+                    initprintf("%s:%d provided sound volume exceeds limit of %d.\n", g_scriptFileName, g_lineNumber, CON_MAXSOUNDVOLUME);
+                    g_errorCnt++;
+                    i = 1024;
+                }
+
+                g_sounds[k].volume = i / 1024.f;
+                g_scriptPtr--;
+            }
+            else
+                g_sounds[k].volume = 1.f;
 
             if (k > g_highestSoundIdx)
                 g_highestSoundIdx = k;
