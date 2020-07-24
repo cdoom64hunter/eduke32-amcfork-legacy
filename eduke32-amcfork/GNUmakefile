@@ -18,7 +18,6 @@ ifeq ($(AMCTC),1)
     APPBASENAME := amctc
     POLYMER := 0
     NETCODE := 0
-    AMC_BUILD := 1
 endif
 
 ### Platform and Toolchain Configuration
