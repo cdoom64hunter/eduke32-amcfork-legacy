@@ -5,6 +5,8 @@ For more recent builds, see: https://github.com/cdoom64hunter/eduke32-amcfork-re
 
 ## Description
 
+This is a fork of eduke32 that is intended to be used with the AMC TC. IT DOES NOT CONTAIN THE AMC TC ITSELF.
+
 **Link to the game: https://www.moddb.com/games/the-amc-tc**
 
 This fork alters a number of hardcoded features in order to preserve backwards-compatibility, prevent game crashes and to improve the overall presentation of certain aspects of the game. These changes are most likely not suitable for a merge with the main eduke32 branch which is why we offer them here.
@@ -13,14 +15,13 @@ The changes that have been made to the engine are listed at the bottom of this d
 
 Instead, to play Duke Nukem 3D, please download an official *EDuke32* release from here: https://www.eduke32.com/ 
 
-In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**. We also provide pre-compiled executables for 64 and 32 bit Windows (compiled using gcc 9.2).
+In this repository, we provide the source code for our fork of EDuke32, a patch file listing the changes that have been made to the respective revision this fork was based on, as well as the png images used for the startup banner and the game icons, which have been created by **AliCatGamer** and **Sebabdukeboss20**.
 
 *EDuke32 is licensed under the GNU GPL 2.0 and the BUILD license, 
 which have been included in the base directory of this repository as well, under gpl-2.0.txt and buildlic.txt.
 We hereby release our changes to the engine under the same licenses.*
 
 ### This fork has been created by:
-* Cedric "Sangluss" Haegeman
 * Dino "Doom64hunter" Bollinger
 
 ### AMC TC Lead: 
